@@ -9,8 +9,8 @@
 
 using namespace std;
 
-// Strategy: Use an improved pattern that covers the board more effectively
-// Focus on creating diverse trajectories
+// Strategy: Adaptive pattern-based approach
+// Use multiple pattern phases and adapt based on progress
 
 class Solver {
 private:
@@ -18,38 +18,71 @@ private:
     int n, m, s;
     vector<char> operations;
     mt19937 rng;
+    int lastCheckHits;
+    int stuckCounter;
 
-    // Improved pattern that creates more diverse ball trajectories
-    char chooseOperation(int step) {
-        // Use a longer, more varied pattern
-        // The key is to create different angles to hit different parts of the board
-        int cycle = step % 40;
-
-        // Phase 1: Strong left sweep
-        if (cycle < 5) return 'A';
-        // Phase 2: Gradual return to center
-        if (cycle < 10) return 'D';
-        // Phase 3: Strong right sweep
-        if (cycle < 15) return 'E';
-        // Phase 4: Gradual return to center
-        if (cycle < 20) return 'B';
-        // Phase 5: Moderate left
-        if (cycle < 25) return 'B';
-        // Phase 6: Center
-        if (cycle < 27) return 'C';
-        // Phase 7: Moderate right
-        if (cycle < 32) return 'D';
-        // Phase 8: Center
-        if (cycle < 34) return 'C';
-        // Phase 9: Mix
-        if (cycle < 37) return (cycle % 2 == 0) ? 'A' : 'E';
-        // Phase 10: Center stabilize
+    // Multiple pattern strategies
+    char getPattern1(int cycle) {
+        // Wide sweeping pattern
+        if (cycle < 3) return 'A';
+        if (cycle < 6) return 'E';
+        if (cycle < 9) return 'B';
+        if (cycle < 12) return 'D';
+        if (cycle < 14) return 'C';
         return 'C';
+    }
+
+    char getPattern2(int cycle) {
+        // Aggressive zigzag
+        if (cycle < 2) return 'A';
+        if (cycle < 4) return 'E';
+        if (cycle < 6) return 'A';
+        if (cycle < 8) return 'E';
+        if (cycle < 10) return 'C';
+        return 'C';
+    }
+
+    char getPattern3(int cycle) {
+        // Gradual sweep
+        if (cycle < 5) return 'B';
+        if (cycle < 10) return 'D';
+        if (cycle < 15) return 'B';
+        if (cycle < 20) return 'D';
+        return 'C';
+    }
+
+    char chooseOperation(int step) {
+        // Check progress every 100 steps
+        if (step % 100 == 0 && step > 0) {
+            int currentHits = game->bricksHit();
+            if (currentHits == lastCheckHits) {
+                stuckCounter++;
+            } else {
+                stuckCounter = 0;
+            }
+            lastCheckHits = currentHits;
+        }
+
+        // Choose pattern based on progress and step
+        int patternPhase = (step / 200) % 3;
+        int cycle = step % 20;
+
+        if (stuckCounter > 2) {
+            // If stuck, try more aggressive pattern
+            return getPattern2(cycle % 10);
+        } else if (patternPhase == 0) {
+            return getPattern1(cycle % 15);
+        } else if (patternPhase == 1) {
+            return getPattern2(cycle % 10);
+        } else {
+            return getPattern3(cycle % 20);
+        }
     }
 
 public:
     Solver(Game* g, int n_val, int m_val, int s_val)
-        : game(g), n(n_val), m(m_val), s(s_val), rng(42) {}
+        : game(g), n(n_val), m(m_val), s(s_val), rng(42),
+          lastCheckHits(0), stuckCounter(0) {}
 
     void solve() {
         int maxOps = min(m, 16 * n * n);
