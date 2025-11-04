@@ -9,8 +9,8 @@
 
 using namespace std;
 
-// Strategy: Use a simple pattern-based approach
-// Alternate between different operations to cover the board
+// Strategy: Use a smarter greedy approach with limited lookahead
+// Sample a few operations and choose the best one
 
 class Solver {
 private:
@@ -19,16 +19,65 @@ private:
     vector<char> operations;
     mt19937 rng;
 
-    // Simple heuristic: try to sweep the board systematically
-    char chooseOperation(int step) {
-        // Pattern: sweep left and right to cover the board
-        int cycle = step % 20;
+    // Try a subset of operations and choose the best
+    char chooseBestOperation(int step) {
+        vector<char> ops = {'A', 'B', 'C', 'D', 'E'};
 
-        if (cycle < 4) return 'A';      // Move left
-        else if (cycle < 8) return 'E'; // Move right
-        else if (cycle < 12) return 'B'; // Move left slowly
-        else if (cycle < 16) return 'D'; // Move right slowly
-        else return 'C';                 // Stay center
+        // For small n, try all operations
+        if (n <= 50) {
+            char bestOp = 'C';
+            int bestScore = -1;
+
+            for (char op : ops) {
+                Game::Save* save = game->save();
+                int oldHits = game->bricksHit();
+                int reward = game->play(op);
+                int newHits = game->bricksHit();
+                int score = (newHits - oldHits) * 1000 + reward;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestOp = op;
+                }
+
+                game->load(save);
+                game->erase(save);
+            }
+            return bestOp;
+        }
+
+        // For large n, use pattern with occasional sampling
+        if (step % 10 == 0) {
+            // Sample 3 random operations
+            vector<char> sample = {'C', 'B', 'D'};
+            char bestOp = 'C';
+            int bestScore = -1;
+
+            for (char op : sample) {
+                Game::Save* save = game->save();
+                int oldHits = game->bricksHit();
+                int reward = game->play(op);
+                int newHits = game->bricksHit();
+                int score = (newHits - oldHits) * 1000 + reward;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestOp = op;
+                }
+
+                game->load(save);
+                game->erase(save);
+            }
+            return bestOp;
+        }
+
+        // Use pattern
+        int cycle = step % 20;
+        if (cycle < 4) return 'A';
+        else if (cycle < 8) return 'E';
+        else if (cycle < 12) return 'B';
+        else if (cycle < 16) return 'D';
+        else return 'C';
     }
 
 public:
@@ -36,11 +85,10 @@ public:
         : game(g), n(n_val), m(m_val), s(s_val), rng(42) {}
 
     void solve() {
-        int maxOps = min(m, 16 * n * n); // Limit operations
+        int maxOps = min(m, 16 * n * n);
 
-        // Simple pattern-based approach
         for (int step = 0; step < maxOps && game->bricksRemaining() > 0; step++) {
-            char op = chooseOperation(step);
+            char op = chooseBestOperation(step);
             game->play(op);
             operations.push_back(op);
         }
