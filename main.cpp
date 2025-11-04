@@ -4,75 +4,45 @@
 #include <cmath>
 #include <queue>
 #include <set>
+#include <random>
 #include "game.h"
 
 using namespace std;
 
-// Strategy: Use a greedy approach to hit bricks efficiently
-// Try to maximize score while minimizing operations
+// Strategy: Use a simple pattern-based approach
+// Alternate between different operations to cover the board
 
 class Solver {
 private:
     Game* game;
     int n, m, s;
     vector<char> operations;
-    
-    // Try different operations and choose the best one
-    char chooseBestOperation() {
-        vector<char> ops = {'A', 'B', 'C', 'D', 'E'};
-        char bestOp = 'C';
-        int bestReward = -1;
-        int bestBricksHit = -1;
-        
-        // Try each operation and see which gives best immediate reward
-        for (char op : ops) {
-            Game::Save* save = game->save();
-            int oldHits = game->bricksHit();
-            int reward = game->play(op);
-            int newHits = game->bricksHit();
-            int bricksHit = newHits - oldHits;
-            
-            // Prefer operations that hit more bricks, then higher reward
-            if (bricksHit > bestBricksHit || 
-                (bricksHit == bestBricksHit && reward > bestReward)) {
-                bestOp = op;
-                bestReward = reward;
-                bestBricksHit = bricksHit;
-            }
-            
-            game->load(save);
-            game->erase(save);
-        }
-        
-        return bestOp;
-    }
-    
-public:
-    Solver(Game* g, int n_val, int m_val, int s_val) 
-        : game(g), n(n_val), m(m_val), s(s_val) {}
-    
-    void solve() {
-        int totalBricks = game->bricksTotal();
-        int maxOps = m;
+    mt19937 rng;
 
-        // Keep playing until all bricks are hit or we reach max operations
-        while (game->bricksRemaining() > 0 && (int)operations.size() < maxOps) {
-            char op = chooseBestOperation();
+    // Simple heuristic: try to sweep the board systematically
+    char chooseOperation(int step) {
+        // Pattern: sweep left and right to cover the board
+        int cycle = step % 20;
+
+        if (cycle < 4) return 'A';      // Move left
+        else if (cycle < 8) return 'E'; // Move right
+        else if (cycle < 12) return 'B'; // Move left slowly
+        else if (cycle < 16) return 'D'; // Move right slowly
+        else return 'C';                 // Stay center
+    }
+
+public:
+    Solver(Game* g, int n_val, int m_val, int s_val)
+        : game(g), n(n_val), m(m_val), s(s_val), rng(42) {}
+
+    void solve() {
+        int maxOps = min(m, 16 * n * n); // Limit operations
+
+        // Simple pattern-based approach
+        for (int step = 0; step < maxOps && game->bricksRemaining() > 0; step++) {
+            char op = chooseOperation(step);
             game->play(op);
             operations.push_back(op);
-
-            // Safety check - if we're not making progress, try different strategy
-            if ((int)operations.size() > maxOps / 2 &&
-                game->bricksHit() < totalBricks / 4) {
-                // Try more aggressive moves
-                if (operations.size() % 2 == 0) {
-                    op = 'A';
-                } else {
-                    op = 'E';
-                }
-                game->play(op);
-                operations.push_back(op);
-            }
         }
     }
     
