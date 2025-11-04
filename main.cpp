@@ -9,8 +9,8 @@
 
 using namespace std;
 
-// Strategy: Use a smarter greedy approach with limited lookahead
-// Sample a few operations and choose the best one
+// Strategy: Use an improved pattern that covers the board more effectively
+// Focus on creating diverse trajectories
 
 class Solver {
 private:
@@ -19,65 +19,32 @@ private:
     vector<char> operations;
     mt19937 rng;
 
-    // Try a subset of operations and choose the best
-    char chooseBestOperation(int step) {
-        vector<char> ops = {'A', 'B', 'C', 'D', 'E'};
+    // Improved pattern that creates more diverse ball trajectories
+    char chooseOperation(int step) {
+        // Use a longer, more varied pattern
+        // The key is to create different angles to hit different parts of the board
+        int cycle = step % 40;
 
-        // For small n, try all operations
-        if (n <= 50) {
-            char bestOp = 'C';
-            int bestScore = -1;
-
-            for (char op : ops) {
-                Game::Save* save = game->save();
-                int oldHits = game->bricksHit();
-                int reward = game->play(op);
-                int newHits = game->bricksHit();
-                int score = (newHits - oldHits) * 1000 + reward;
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestOp = op;
-                }
-
-                game->load(save);
-                game->erase(save);
-            }
-            return bestOp;
-        }
-
-        // For large n, use pattern with occasional sampling
-        if (step % 10 == 0) {
-            // Sample 3 random operations
-            vector<char> sample = {'C', 'B', 'D'};
-            char bestOp = 'C';
-            int bestScore = -1;
-
-            for (char op : sample) {
-                Game::Save* save = game->save();
-                int oldHits = game->bricksHit();
-                int reward = game->play(op);
-                int newHits = game->bricksHit();
-                int score = (newHits - oldHits) * 1000 + reward;
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestOp = op;
-                }
-
-                game->load(save);
-                game->erase(save);
-            }
-            return bestOp;
-        }
-
-        // Use pattern
-        int cycle = step % 20;
-        if (cycle < 4) return 'A';
-        else if (cycle < 8) return 'E';
-        else if (cycle < 12) return 'B';
-        else if (cycle < 16) return 'D';
-        else return 'C';
+        // Phase 1: Strong left sweep
+        if (cycle < 5) return 'A';
+        // Phase 2: Gradual return to center
+        if (cycle < 10) return 'D';
+        // Phase 3: Strong right sweep
+        if (cycle < 15) return 'E';
+        // Phase 4: Gradual return to center
+        if (cycle < 20) return 'B';
+        // Phase 5: Moderate left
+        if (cycle < 25) return 'B';
+        // Phase 6: Center
+        if (cycle < 27) return 'C';
+        // Phase 7: Moderate right
+        if (cycle < 32) return 'D';
+        // Phase 8: Center
+        if (cycle < 34) return 'C';
+        // Phase 9: Mix
+        if (cycle < 37) return (cycle % 2 == 0) ? 'A' : 'E';
+        // Phase 10: Center stabilize
+        return 'C';
     }
 
 public:
@@ -88,7 +55,7 @@ public:
         int maxOps = min(m, 16 * n * n);
 
         for (int step = 0; step < maxOps && game->bricksRemaining() > 0; step++) {
-            char op = chooseBestOperation(step);
+            char op = chooseOperation(step);
             game->play(op);
             operations.push_back(op);
         }
